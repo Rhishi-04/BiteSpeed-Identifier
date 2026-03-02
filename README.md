@@ -50,11 +50,17 @@ curl -X POST http://localhost:8000/identify \
 
 ## Environment
 
-- **DATABASE_URL** – SQLite by default (`sqlite:///./dev.db`). For production use PostgreSQL.
+- **DATABASE_URL** – SQLite by default (`sqlite:///./dev.db`). For production (e.g. Vercel) use a PostgreSQL URL (e.g. [Neon](https://neon.tech) free tier).
 - **PORT** – Server port (uvicorn uses `--port`; default 8000).
 
 ---
 
-## Hosted endpoint
+## Deploy on Vercel
 
-*(Add your hosted URL here after deploying, e.g. Render.)*
+1. Push this repo to GitHub and [import it on Vercel](https://vercel.com/new).
+2. Add a **PostgreSQL** database (e.g. [Neon](https://neon.tech): create a project, copy the connection string).
+3. In Vercel → Project → **Settings → Environment Variables**, add:
+   - **DATABASE_URL** = your Postgres connection string (e.g. `postgresql://user:pass@host/db?sslmode=require`).
+4. Deploy. Your API will be at `https://<your-project>.vercel.app/identify`.
+
+**Identify endpoint (live):** `POST https://<your-project>.vercel.app/identify` with JSON body `{"email":"...", "phoneNumber":"..."}`.
