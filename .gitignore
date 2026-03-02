@@ -14,3 +14,4 @@ venv/
 
 # Node (leftover from previous setup)
 node_modules/
+.vercel

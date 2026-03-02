@@ -1,66 +1,109 @@
-# Bitespeed Identify API (Python + FastAPI)
+# Bitespeed Identify API
 
 Contact identity resolution for FluxKart: link multiple emails/phones to one customer and return a consolidated view.
 
-**Endpoint:** `POST /identify`  
-**Body (JSON):** `{ "email"?: string, "phoneNumber"?: number | string }`  
+---
+
+## Live API
+
+| | |
+|---|---|
+| **Base URL** | `https://bitespeed-identifier-rhishikesh-bansodes-projects.vercel.app` |
+| **Identify** | `POST /identify` |
+
+**Request (JSON body):** `{ "email"?: string, "phoneNumber"?: number \| string }`  
 **Response:** `{ "contact": { "primaryContatctId", "emails", "phoneNumbers", "secondaryContactIds" } }`
 
 ---
 
-## Quick start
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Client
+        A[FluxKart / Client]
+    end
+    subgraph Vercel
+        B[Edge / Rewrites]
+        C[Serverless Function]
+    end
+    subgraph App
+        D[FastAPI]
+        E[Identify Service]
+    end
+    subgraph Data
+        F[(Neon PostgreSQL)]
+    end
+    A -->|POST /identify| B
+    B -->|/api/index| C
+    C --> D
+    D --> E
+    E --> F
+```
+
+**Tech stack**
+
+| Layer | Technology |
+|-------|------------|
+| Hosting | Vercel (serverless) |
+| API | FastAPI (Python) |
+| Validation | Pydantic |
+| DB | PostgreSQL (Neon), SQLAlchemy |
+| Local DB | SQLite (default) |
+
+---
+
+## Project structure
+
+```
+├── api/
+│   └── index.py          # Vercel serverless entry (wires FastAPI)
+├── app/
+│   ├── main.py           # FastAPI app, lifespan, routes
+│   ├── database.py       # SQLAlchemy engine, get_db
+│   ├── models.py         # Contact model
+│   ├── schemas.py        # Pydantic request/response
+│   ├── identify_service.py
+│   └── routers/
+│       └── identify.py   # POST /identify
+├── scripts/
+│   └── test_identify.sh  # Test script (local or live URL)
+├── vercel.json           # Rewrites → /api/index
+├── requirements.txt
+└── .env.example
+```
+
+---
+
+## Setup
 
 ```bash
-# Create virtualenv (recommended)
 python3 -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-
-# Install dependencies
+source .venv/bin/activate
 pip install -r requirements.txt
-
-# Optional: copy env and set PORT/DATABASE_URL
-cp .env.example .env
-
-# Run the server
+cp .env.example .env   # optional: set DATABASE_URL, PORT
 uvicorn app.main:app --reload --port 8000
 ```
 
-Then:
+**Env:** `DATABASE_URL` (default: SQLite `./dev.db`; production: PostgreSQL). `PORT` (default 8000).
+
+---
+
+## Deploy (Vercel)
+
+1. Import repo on [Vercel](https://vercel.com/new).
+2. **Storage** → Create Database → **Neon** (PostgreSQL). `DATABASE_URL` is set automatically.
+3. **Deployments** → Redeploy.
+4. **Settings** → **Deployment Protection** → Production → **None** (so the API is public).
+
+---
+
+## Test
 
 ```bash
-curl -X POST http://localhost:8000/identify \
-  -H "Content-Type: application/json" \
-  -d '{"email":"lorraine@hillvalley.edu","phoneNumber":"123456"}'
+# Local
+./scripts/test_identify.sh
+
+# Live
+./scripts/test_identify.sh https://bitespeed-identifier-rhishikesh-bansodes-projects.vercel.app
 ```
-
----
-
-## Project layout (familiar FastAPI structure)
-
-| File / folder | Role |
-|---------------|------|
-| `app/main.py` | FastAPI app, lifespan (create DB tables), include router |
-| `app/database.py` | SQLAlchemy engine, `SessionLocal`, `get_db()` dependency |
-| `app/models.py` | `Contact` SQLAlchemy model (table definition) |
-| `app/schemas.py` | Pydantic `IdentifyRequest`, `IdentifyResponse` |
-| `app/identify_service.py` | Business logic: find/create/link contacts, build response |
-| `app/routers/identify.py` | `POST /identify` route, calls service, uses `Depends(get_db)` |
-
----
-
-## Environment
-
-- **DATABASE_URL** – SQLite by default (`sqlite:///./dev.db`). For production (e.g. Vercel) use a PostgreSQL URL (e.g. [Neon](https://neon.tech) free tier).
-- **PORT** – Server port (uvicorn uses `--port`; default 8000).
-
----
-
-## Deploy on Vercel
-
-1. Push this repo to GitHub and [import it on Vercel](https://vercel.com/new).
-2. Add a **PostgreSQL** database (e.g. [Neon](https://neon.tech): create a project, copy the connection string).
-3. In Vercel → Project → **Settings → Environment Variables**, add:
-   - **DATABASE_URL** = your Postgres connection string (e.g. `postgresql://user:pass@host/db?sslmode=require`).
-4. Deploy. Your API will be at `https://<your-project>.vercel.app/identify`.
-
-**Identify endpoint (live):** `POST https://<your-project>.vercel.app/identify` with JSON body `{"email":"...", "phoneNumber":"..."}`.
