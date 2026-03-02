@@ -1,6 +1,34 @@
 # Bitespeed Identify API
 
-Contact identity resolution for FluxKart: link multiple emails/phones to one customer and return a consolidated view.
+A contact identity resolution service for **FluxKart**: it links multiple emails and phone numbers to a single customer and returns one consolidated contact view.
+
+---
+
+## What this project does
+
+FluxKart uses **Bitespeed** to collect contact details (email, phone) for a personalised experience. The same person may place orders with different emails or numbers. This API:
+
+- **Identifies** whether an incoming email/phone belongs to an existing customer or a new one.
+- **Links** contacts that share at least one identifier (same email or same phone), so they are treated as one customer.
+- **Returns** a single consolidated contact: one primary contact, all linked emails and phone numbers, and any secondary contact IDs.
+
+So no matter which email or phone someone uses, FluxKart sees one unified customer.
+
+---
+
+## Special functionality
+
+- **Primary vs secondary contacts**  
+  The first contact created for a customer is the *primary*; any later contacts that link to it (via shared email or phone) are *secondary* and point to the primary.
+
+- **Automatic linking**  
+  If a request matches an existing contact on email or phone, the service either returns that chain or creates a new secondary when the request brings a *new* email or phone.
+
+- **Merging two primaries**  
+  When the same person is represented by two separate primary contacts (e.g. one found by email, one by phone), the service merges them: the older primary stays, the newer one becomes a secondary linked to it.
+
+- **Single source of truth**  
+  All requests that relate to the same person (by shared email or phone) get the same consolidated response: same `primaryContatctId`, same `emails` and `phoneNumbers` lists, same `secondaryContactIds`.
 
 ---
 
@@ -19,26 +47,26 @@ Contact identity resolution for FluxKart: link multiple emails/phones to one cus
 ## Architecture
 
 ```mermaid
-flowchart LR
-    subgraph Client
-        A[FluxKart / Client]
+flowchart TB
+    subgraph client[" "]
+        A[Client / FluxKart]
     end
-    subgraph Vercel
-        B[Edge / Rewrites]
+    subgraph vercel["Vercel"]
+        B[Edge]
         C[Serverless Function]
     end
-    subgraph App
+    subgraph app["Application"]
         D[FastAPI]
         E[Identify Service]
     end
-    subgraph Data
-        F[(Neon PostgreSQL)]
+    subgraph data["Data"]
+        F[(PostgreSQL)]
     end
-    A -->|POST /identify| B
-    B -->|/api/index| C
+    A -->|"POST /identify"| B
+    B --> C
     C --> D
     D --> E
-    E --> F
+    E -->|Read / Write| F
 ```
 
 **Tech stack**
@@ -48,58 +76,22 @@ flowchart LR
 | Hosting | Vercel (serverless) |
 | API | FastAPI (Python) |
 | Validation | Pydantic |
-| DB | PostgreSQL (Neon), SQLAlchemy |
-| Local DB | SQLite (default) |
+| Database | PostgreSQL (Neon), SQLAlchemy |
+| Local dev | SQLite (optional) |
 
 ---
 
 ## Project structure
 
 ```
-├── api/
-│   └── index.py          # Vercel serverless entry (wires FastAPI)
+├── api/index.py          # Vercel entry → FastAPI app
 ├── app/
-│   ├── main.py           # FastAPI app, lifespan, routes
-│   ├── database.py       # SQLAlchemy engine, get_db
+│   ├── main.py           # FastAPI app, routes, lifespan
+│   ├── database.py       # Engine, session, get_db
 │   ├── models.py         # Contact model
-│   ├── schemas.py        # Pydantic request/response
-│   ├── identify_service.py
-│   └── routers/
-│       └── identify.py   # POST /identify
-├── vercel.json           # Rewrites → /api/index
-├── requirements.txt
-└── .env.example
-```
-
----
-
-## Setup
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env   # optional: set DATABASE_URL, PORT
-uvicorn app.main:app --reload --port 8000
-```
-
-**Env:** `DATABASE_URL` (default: SQLite `./dev.db`; production: PostgreSQL). `PORT` (default 8000).
-
----
-
-## Deploy (Vercel)
-
-1. Import repo on [Vercel](https://vercel.com/new).
-2. **Storage** → Create Database → **Neon** (PostgreSQL). `DATABASE_URL` is set automatically.
-3. **Deployments** → Redeploy.
-4. **Settings** → **Deployment Protection** → Production → **None** (so the API is public).
-
----
-
-## Test
-
-```bash
-curl -X POST https://bitespeed-identifier-rhishikesh-bansodes-projects.vercel.app/identify \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","phoneNumber":"123456"}'
+│   ├── schemas.py        # Request/response schemas
+│   ├── identify_service.py   # Linking & consolidation logic
+│   └── routers/identify.py   # POST /identify
+├── vercel.json           # Rewrites to /api/index
+└── requirements.txt
 ```
