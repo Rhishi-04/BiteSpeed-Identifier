@@ -66,8 +66,6 @@ flowchart LR
 │   ├── identify_service.py
 │   └── routers/
 │       └── identify.py   # POST /identify
-├── scripts/
-│   └── test_identify.sh  # Test script (local or live URL)
 ├── vercel.json           # Rewrites → /api/index
 ├── requirements.txt
 └── .env.example
@@ -101,9 +99,7 @@ uvicorn app.main:app --reload --port 8000
 ## Test
 
 ```bash
-# Local
-./scripts/test_identify.sh
-
-# Live
-./scripts/test_identify.sh https://bitespeed-identifier-rhishikesh-bansodes-projects.vercel.app
+curl -X POST https://bitespeed-identifier-rhishikesh-bansodes-projects.vercel.app/identify \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","phoneNumber":"123456"}'
 ```
