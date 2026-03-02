@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.local
+*.log
+.DS_Store
+
+# SQLite
+*.db
+*.db-journal
+
+# Node (leftover from previous setup)
+node_modules/
