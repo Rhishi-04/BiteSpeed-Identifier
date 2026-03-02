@@ -46,27 +46,49 @@ So no matter which email or phone someone uses, FluxKart sees one unified custom
 
 ## Architecture
 
+End-to-end request flow: how a `POST /identify` request is handled.
+
 ```mermaid
 flowchart TB
-    subgraph client[" "]
-        A[Client / FluxKart]
+    subgraph client["Client"]
+        A["FluxKart / Client"]
     end
+
     subgraph vercel["Vercel"]
-        B[Edge]
-        C[Serverless Function]
+        B["vercel.json rewrites<br/><i>/(.*) → /api/index</i>"]
+        C["api/index.py<br/><i>Serverless function</i>"]
     end
-    subgraph app["Application"]
-        D[FastAPI]
-        E[Identify Service]
+
+    subgraph fastapi["FastAPI app (app/main.py)"]
+        D["FastAPI app<br/><i>lifespan: create tables</i>"]
+        E["routers/identify.py<br/><i>POST /identify</i>"]
+        F["Pydantic<br/><i>IdentifyRequest → validate body</i>"]
+        G["get_db()<br/><i>SQLAlchemy Session</i>"]
     end
-    subgraph data["Data"]
-        F[(PostgreSQL)]
+
+    subgraph service["Business logic"]
+        H["identify_service.identify()<br/><i>find / create / link contacts</i>"]
     end
-    A -->|"POST /identify"| B
-    B --> C
-    C --> D
+
+    subgraph data["Data layer"]
+        I["SQLAlchemy Engine<br/><i>database.py</i>"]
+        J["Contact model<br/><i>models.py</i>"]
+        K["Neon PostgreSQL<br/><i>contacts table</i>"]
+    end
+
+    A -->|"1. POST /identify<br/>JSON: email, phoneNumber"| B
+    B -->|"2. Route to function"| C
+    C -->|"3. Invoke FastAPI app"| D
     D --> E
-    E -->|Read / Write| F
+    E -->|"4. Validate body"| F
+    F -->|"5. Inject session"| G
+    G --> H
+    H -->|"6. Query / insert"| I
+    I --> J
+    J -->|"7. SQL"| K
+    K -.->|"8. Rows"| H
+    H -.->|"9. IdentifyResponse"| E
+    E -.->|"10. JSON"| A
 ```
 
 **Tech stack**
