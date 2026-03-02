@@ -8,10 +8,6 @@ venv/
 *.log
 .DS_Store
 
-# SQLite
-*.db
-*.db-journal
-
 # Node (leftover from previous setup)
 node_modules/
 .vercel

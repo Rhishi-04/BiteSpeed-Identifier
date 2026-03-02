@@ -99,7 +99,6 @@ flowchart TB
 | API | FastAPI (Python) |
 | Validation | Pydantic |
 | Database | PostgreSQL (Neon), SQLAlchemy |
-| Local dev | SQLite (optional) |
 
 ---
 
